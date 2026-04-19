@@ -1,0 +1,2 @@
+FROM ghcr.io/activepieces/activepieces:0.80.1
+RUN sed -i "s/transports: \['websocket'\]/transports: ['websocket', 'polling']/" packages/server/api/dist/src/app/server.js
