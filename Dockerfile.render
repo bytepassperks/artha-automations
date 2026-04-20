@@ -48,5 +48,26 @@ RUN find packages/server/api/src/assets/emails -name "*.html" -exec sed -i \
   -e 's|https://cdn.activepieces.com/brand/logo.svg|https://app.onflowstack.com/favicon.png|g' \
   {} +
 
-# 7. Inject auto-auth script for seamless SSO from FlowStack dashboard
-RUN sed -i 's|<div id="root"></div>|<script>(function(){var p=new URLSearchParams(window.location.search);var t=p.get("fs_token");var pid=p.get("fs_project");if(t){localStorage.setItem("token",t);if(pid)localStorage.setItem("projectId",pid);p.delete("fs_token");p.delete("fs_project");var q=p.toString();window.history.replaceState({},"",window.location.pathname+(q?"?"+q:""));}})();</script><div id="root"></div>|' dist/packages/web/index.html
+# 7. Inject auto-auth + sidebar-hiding script for seamless SSO from FlowStack dashboard
+RUN printf '%s\n' \
+  '(function(){' \
+  'var p=new URLSearchParams(window.location.search);' \
+  'var t=p.get("fs_token");var pid=p.get("fs_project");' \
+  'if(t){' \
+  'var s=document.createElement("style");' \
+  's.textContent=".fs-embedded [data-slot=sidebar]{display:none !important}"+' \
+  '".fs-embedded [data-slot=sidebar-wrapper]{--sidebar-width:0px !important}"+' \
+  '".fs-embedded [data-slot=sidebar-gap]{display:none !important}"+' \
+  '".fs-embedded [data-slot=sidebar-container]{display:none !important}"+' \
+  '".fs-embedded [data-slot=sidebar-inset]{margin-left:0 !important;width:100% !important}";' \
+  'document.head.appendChild(s);' \
+  'document.documentElement.classList.add("fs-embedded");' \
+  'localStorage.setItem("token",t);' \
+  'if(pid)localStorage.setItem("projectId",pid);' \
+  'p.delete("fs_token");p.delete("fs_project");' \
+  'var q=p.toString();' \
+  'window.history.replaceState({},"",window.location.pathname+(q?"?"+q:""));' \
+  '}})();' > /tmp/fs_embed.js && \
+    SCRIPT=$(tr -d '\n' < /tmp/fs_embed.js) && \
+    sed -i "s|<div id=\"root\"></div>|<script>${SCRIPT}</script><div id=\"root\"></div>|" dist/packages/web/index.html && \
+    rm /tmp/fs_embed.js
