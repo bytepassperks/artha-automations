@@ -50,6 +50,5 @@ RUN find packages/server/api/src/assets/emails -name "*.html" -exec sed -i \
 
 # 7. Inject auto-auth + sidebar-hiding script for seamless SSO from FlowStack dashboard
 COPY fs_embed.js /tmp/fs_embed.js
-RUN SCRIPT=$(tr -d '\n' < /tmp/fs_embed.js) && \
-    sed -i "s|<div id=\"root\"></div>|<script>${SCRIPT}</script><div id=\"root\"></div>|" dist/packages/web/index.html && \
-    rm /tmp/fs_embed.js
+COPY inject.py /tmp/inject.py
+RUN python3 /tmp/inject.py && rm /tmp/fs_embed.js /tmp/inject.py
