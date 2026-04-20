@@ -47,3 +47,6 @@ RUN find packages/server/api/src/assets/emails -name "*.html" -exec sed -i \
   -e 's|https://cdn.activepieces.com/brand/full-logo.png|https://app.onflowstack.com/logo-180.png|g' \
   -e 's|https://cdn.activepieces.com/brand/logo.svg|https://app.onflowstack.com/favicon.png|g' \
   {} +
+
+# 7. Inject auto-auth script for seamless SSO from FlowStack dashboard
+RUN sed -i 's|<div id="root"></div>|<script>(function(){var p=new URLSearchParams(window.location.search);var t=p.get("fs_token");var pid=p.get("fs_project");if(t){localStorage.setItem("token",t);if(pid)localStorage.setItem("projectId",pid);p.delete("fs_token");p.delete("fs_project");var q=p.toString();window.history.replaceState({},"",window.location.pathname+(q?"?"+q:""));}})();</script><div id="root"></div>|' dist/packages/web/index.html
