@@ -35,9 +35,13 @@ RUN apt-get update -qq && apt-get install -y -qq curl > /dev/null 2>&1 && \
   apt-get remove -y curl > /dev/null 2>&1 && apt-get autoremove -y > /dev/null 2>&1 && rm -rf /var/lib/apt/lists/*
 
 # 5. Replace any remaining "Activepieces" text in compiled frontend JS bundles
+#    Preserve cdn.activepieces.com (piece icon CDN) by temporarily replacing it,
+#    then swapping the rest, then restoring.
 RUN find dist/packages/web/assets -name "*.js" -exec sed -i \
+  -e 's|cdn\.activepieces\.com|__CDN_AP_PLACEHOLDER__|g' \
   -e 's|Activepieces|FlowStack|g' \
   -e 's|activepieces\.com|onflowstack.com|g' \
+  -e 's|__CDN_AP_PLACEHOLDER__|cdn.activepieces.com|g' \
   {} +
 
 # 6. Replace branding in email templates
