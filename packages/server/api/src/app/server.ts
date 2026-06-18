@@ -46,7 +46,7 @@ export const setupServer = async (): Promise<FastifyInstance> => {
             maxHttpBufferSize: 1e8,
             path: '/api/socket.io',
             ...spreadIfDefined('adapter', await getAdapter()),
-            transports: ['websocket', 'polling'],
+            transports: ['websocket'],
         })
         app.io.use((socket: Socket, next: (err?: Error) => void) => {
             websocketService
