@@ -10,6 +10,18 @@ set -eu
 APP_ROOT="${1:?usage: rebrand.sh <app-root> <assets-dir>}"
 ASSETS_DIR="${2:?usage: rebrand.sh <app-root> <assets-dir>}"
 
+# Post-condition guard: a sed no-match exits 0, so without this an upstream text
+# drift would silently ship a half-branded slug. Asserting the *branded result*
+# (not the source token) keeps the script idempotent: it passes on a fresh run
+# and on a re-run. The first failed assertion aborts the build loudly.
+assert_contains() {
+  if ! grep -qF -- "$2" "$1"; then
+    echo "rebrand: ASSERTION FAILED — expected '$2' in $1" >&2
+    echo "rebrand: upstream text likely drifted; refusing to ship a half-branded build." >&2
+    exit 1
+  fi
+}
+
 # ── Brand configuration ──────────────────────────────────────────────────────
 BRAND_NAME="Artha Automations"
 PRIMARY_COLOR="#202870"
@@ -49,18 +61,26 @@ sed -i \
   -e "s|favIconUrl: 'https://cdn.activepieces.com/brand/logo.svg'|favIconUrl: '${FAVICON_REL}'|g" \
   -e "s|logoIconUrl: 'https://cdn.activepieces.com/brand/logo.svg'|logoIconUrl: '${LOGO_ICON_REL}'|g" \
   "$FLAGS/theme.js"
+assert_contains "$FLAGS/theme.js" "websiteName: '${BRAND_NAME}'"
+assert_contains "$FLAGS/theme.js" "primaryColor: '${PRIMARY_COLOR}'"
+assert_contains "$FLAGS/theme.js" "fullLogoUrl: '${FULL_LOGO_REL}'"
+assert_contains "$FLAGS/theme.js" "favIconUrl: '${FAVICON_REL}'"
+assert_contains "$FLAGS/theme.js" "logoIconUrl: '${LOGO_ICON_REL}'"
 
 # ── 3. Privacy / terms links ──────────────────────────────────────────────────
 sed -i \
   -e "s|https://www.activepieces.com/privacy|${PRIVACY_URL}|g" \
   -e "s|https://www.activepieces.com/terms|${TERMS_URL}|g" \
   "$FLAGS/flag.service.js"
+assert_contains "$FLAGS/flag.service.js" "${PRIVACY_URL}"
+assert_contains "$FLAGS/flag.service.js" "${TERMS_URL}"
 
 # ── 4. Frontend HTML — page title and favicon links ──────────────────────────
 sed -i \
   -e "s|<title>Activepieces</title>|<title>${BRAND_NAME}</title>|g" \
   -e "s|href=\"https://activepieces.com/favicon.ico\"|href=\"/favicon.ico\"|g" \
   "$WEB/index.html"
+assert_contains "$WEB/index.html" "<title>${BRAND_NAME}</title>"
 
 # ── 5. Compiled frontend bundles — brand name only ───────────────────────────
 # Only quoted string literals are replaced. A blanket replace would corrupt JS
@@ -72,6 +92,11 @@ find "$WEB/assets" -name "*.js" -exec sed -i \
   -e "s|\"Activepieces\"|\"${BRAND_NAME}\"|g" \
   -e "s|'Activepieces'|'${BRAND_NAME}'|g" \
   {} +
+# At least one bundle must carry the branded name, else the replace silently missed.
+if ! grep -rqF -- "${BRAND_NAME}" "$WEB/assets"; then
+  echo "rebrand: ASSERTION FAILED — '${BRAND_NAME}' not found in any web bundle under $WEB/assets" >&2
+  exit 1
+fi
 
 # ── 6. Email templates ───────────────────────────────────────────────────────
 if [ -d "$EMAILS" ]; then
